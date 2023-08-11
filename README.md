@@ -27,7 +27,7 @@ The PDF report generation module provides the following functionality:
 
 Here are examples of the generated PDF reports for different report types:
 
-Note that the difference between the monthly and yearly versions of these reports is merely changing the word "month" to "year" wherever it appears. In addition, even though all the screenshots provided are one page, the program can generate any number of pages.
+> Note that the difference between the monthly and yearly versions of these reports is merely changing the word "month" to "year" wherever it appears. In addition, even though all the screenshots provided are one page, the program can generate any number of pages.
 
 1. Monthly Project Quality Control Report:
    ![Monthly Project QC Report](./output_sample_images/image1.png)
