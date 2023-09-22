@@ -15,7 +15,7 @@ from reportlab.platypus import Table, TableStyle, Paragraph
 # Local imports
 from json_process_cv import json_data_extract
 from month_generator import generate_months
-from point_lj_report.pdfCreateTemp import upload_report
+# from point_lj_report.pdfCreateTemp import upload_report
 
 # Default paragraph style
 paragraph_style = ParagraphStyle(name='CustomStyle',
@@ -85,38 +85,79 @@ def pdf_gen(json_data):
                 }
 
     # First row
-    pdf.setFont("SimHei", 12)  # Set for the whole box
+    pdf.setFont("SimHei", 11)  # Set for the whole box
     pdf.drawString(left + 65, vert_pos1 - 23, "时间范围: ")
-    pdf.drawString(left + 125, vert_pos1 - 23, textbox1["time_range"])
+    pdf.drawString(left + 120, vert_pos1 - 23, textbox1["time_range"])
 
-    # Check if the laboratory name text overflows
-    threshold = right - middle_vert - 135
+    # Check if the right-hand side text overflows
+    threshold = right - middle_vert - 127
+    threshold2 = right - middle_vert - 145
     text_location = textbox1["laboratory"]
+    text_location2 = textbox1["lot_numb/expiry_date"]
     first_line, overflow, status = _check_text_overflow(pdf, text_location, threshold)
-    if status:
+    first_line2, overflow2, status2 = _check_text_overflow(pdf, text_location2, threshold2)
+
+    # Laboratory name overflows but lot_numb/expiry_date doesn't
+    if status and not status2:
         pdf.drawString(middle_vert + 75, vert_pos1 - 23, "实验室: ")
-        pdf.drawString(middle_vert + 125, vert_pos1 - 23, first_line)
-        pdf.drawString(middle_vert + 125, vert_pos1 - 43, overflow)
+        pdf.drawString(middle_vert + 120, vert_pos1 - 23, first_line)
+        pdf.drawString(middle_vert + 120, vert_pos1 - 40, overflow)
 
         # Second row
-        pdf.drawString(left + 65, vert_pos1 - 68, "仪器/试剂盒: ")
-        pdf.drawString(left + 143, vert_pos1 - 68, textbox1["instrument/kit"])
+        pdf.drawString(left + 65, vert_pos1 - 68, "仪器: ")
+        pdf.drawString(left + 100, vert_pos1 - 68, textbox1["instrument/kit"])
         pdf.drawString(middle_vert + 75, vert_pos1 - 68, "批号/效期: ")
-        pdf.drawString(middle_vert + 143, vert_pos1 - 68, textbox1["lot_numb/expiry_date"])
+        pdf.drawString(middle_vert + 138, vert_pos1 - 68, textbox1["lot_numb/expiry_date"])
 
         # Bottom line
         vert_pos2 = vert_pos1 - 68 - 12
         pdf.line(left, vert_pos2, right, vert_pos2)
 
-    else:
+    # Laboratory name doesn't overflow but lot_numb/expiry_date does
+    elif not status and status2:
         pdf.drawString(middle_vert + 75, vert_pos1 - 23, "实验室: ")
-        pdf.drawString(middle_vert + 125, vert_pos1 - 23, text_location)
+        pdf.drawString(middle_vert + 120, vert_pos1 - 23, text_location)
 
         # Second row
-        pdf.drawString(left + 65, vert_pos1 - 48, "仪器/试剂盒: ")
-        pdf.drawString(left + 143, vert_pos1 - 48, textbox1["instrument/kit"])
+        pdf.drawString(left + 65, vert_pos1 - 48, "仪器: ")
+        pdf.drawString(left + 100, vert_pos1 - 48, textbox1["instrument/kit"])
+
         pdf.drawString(middle_vert + 75, vert_pos1 - 48, "批号/效期: ")
-        pdf.drawString(middle_vert + 143, vert_pos1 - 48, textbox1["lot_numb/expiry_date"])
+        pdf.drawString(middle_vert + 138, vert_pos1 - 48, first_line2)
+        pdf.drawString(middle_vert + 138, vert_pos1 - 65, overflow2)
+
+        # Bottom line
+        vert_pos2 = vert_pos1 - 68 - 12
+        pdf.line(left, vert_pos2, right, vert_pos2)
+
+    # Both Laboratory name and lot_numb/expiry_date overflow
+    elif status and status2:
+        pdf.drawString(middle_vert + 75, vert_pos1 - 20, "实验室: ")
+        pdf.drawString(middle_vert + 120, vert_pos1 - 20, first_line)
+        pdf.drawString(middle_vert + 120, vert_pos1 - 33, overflow)
+
+        # Second line
+        pdf.drawString(left + 65, vert_pos1 - 55, "仪器: ")
+        pdf.drawString(left + 100, vert_pos1 - 55, textbox1["instrument/kit"])
+
+        pdf.drawString(middle_vert + 75, vert_pos1 - 55, "批号/效期: ")
+        pdf.drawString(middle_vert + 138, vert_pos1 - 55, first_line2)
+        pdf.drawString(middle_vert + 138, vert_pos1 - 68, overflow2)
+
+        # Bottom line
+        vert_pos2 = vert_pos1 - 68 - 12
+        pdf.line(left, vert_pos2, right, vert_pos2)
+
+    # Neither Laboratory name nor lot_numb/expiry_date overflow
+    else:
+        pdf.drawString(middle_vert + 75, vert_pos1 - 23, "实验室: ")
+        pdf.drawString(middle_vert + 120, vert_pos1 - 23, text_location)
+
+        # Second row
+        pdf.drawString(left + 65, vert_pos1 - 48, "仪器: ")
+        pdf.drawString(left + 100, vert_pos1 - 48, textbox1["instrument/kit"])
+        pdf.drawString(middle_vert + 75, vert_pos1 - 48, "批号/效期: ")
+        pdf.drawString(middle_vert + 138, vert_pos1 - 48, textbox1["lot_numb/expiry_date"])
 
         # Bottom line
         vert_pos2 = vert_pos1 - 48 - 12
@@ -204,10 +245,6 @@ def pdf_gen(json_data):
     # first page is dependent on other quantities like the length of the laboratory name
     fst_run = True
     one_page_format_flag = False
-    one_page_overflow = False
-
-    # Page number
-    page_number = 1
 
     while True:
         if fst_run:
@@ -257,11 +294,6 @@ def pdf_gen(json_data):
             table.drawOn(pdf, 0, shift_val - 2)
             pdf.restoreState()
 
-            # Print the page number
-            pdf.setFont("SimHei", 8)  # Set the font and size for the page number
-            pdf.drawString(middle_vert, bottom - 5, f'{page_number}')
-            page_number += 1
-
             # Turn off the first run flag
             fst_run = False
 
@@ -310,11 +342,6 @@ def pdf_gen(json_data):
             table.drawOn(pdf, 0, shift_val)
             pdf.restoreState()
 
-            # Page number
-            pdf.setFont("SimHei", 8)  # Set the font and size for the page number
-            pdf.drawString(middle_vert, bottom - 5, f'{page_number}')
-            page_number += 1
-
             # Create a new page
             pdf.showPage()
 
@@ -356,11 +383,6 @@ def pdf_gen(json_data):
             pdf.translate(x, y)
             table.drawOn(pdf, 0, shift_val)
             pdf.restoreState()
-
-            # Write the page number
-            pdf.setFont("SimHei", 8)  # Set the font and size for the page number
-            pdf.drawString(middle_vert, bottom - 5, f'{page_number}')
-            page_number += 1
 
             # Create a new page
             pdf.showPage()
@@ -442,16 +464,6 @@ def pdf_gen(json_data):
 
     # If it doesn't fit, transfer it to the next page
     if fit_height + 8 > top - last_height - bottom - 35 + 2:
-
-        if not one_page_format_flag:
-            # Write the page number on the current page
-            pdf.setFont("SimHei", 8)  # Set the font and size for the page number
-            pdf.drawString(middle_vert, bottom - 5, f'{page_number}')
-            page_number += 1
-
-        else:
-            one_page_overflow = True
-
         pdf.showPage()
         val = top - 12
         y = val - 11 - 3 * cell_y
@@ -501,18 +513,13 @@ def pdf_gen(json_data):
     pdf.drawString(right - 140, from_bottom, time)
     pdf.line(right - 107, from_bottom, right, from_bottom)
 
-    # Write the page number on the last page. Ignore if the file has only one page as the page number is already drawn.
-    if not one_page_format_flag or one_page_overflow:
-        pdf.setFont("SimHei", 8)  # Set the font and size for the page number
-        pdf.drawString(middle_vert, bottom - 5, f'{page_number}')
-
     pdf.save()
 
-    # Upload the pdf, delete it from the local machine and return the path
-    pdf_path = upload_report(pdf_file_name)
-
-    os.remove(pdf_file_name)
-    return pdf_path
+    # # Upload the pdf, delete it from the local machine and return the path
+    # pdf_path = upload_report(pdf_file_name)
+    #
+    # os.remove(pdf_file_name)
+    # return pdf_path
 
 
 def _generate_regent_name(string):
