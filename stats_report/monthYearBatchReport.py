@@ -15,7 +15,7 @@ from reportlab.platypus import Table, TableStyle, Paragraph
 
 # Local imports
 from json_process_m2 import json_data_extract
-from point_lj_report.pdfCreateTemp import upload_report
+# from point_lj_report.pdfCreateTemp import upload_report
 
 # Default paragraph style
 paragraph_style = ParagraphStyle(name='CustomStyle',
@@ -55,6 +55,7 @@ def pdf_gen(json_file, month_or_year):
 
     # Create a new PDF document with a unique name on an A4 paper in landscape orientation
     pdf_file_name = f'./{str(uuid.uuid4())}.pdf'
+    pdf_file_name = 'Month2.pdf'
     pdf = canvas.Canvas(pdf_file_name, pagesize=landscape(A4))
     pdf.setLineCap(2)
 
@@ -79,33 +80,40 @@ def pdf_gen(json_file, month_or_year):
     vert_pos1 = top - 45
     pdf.line(left, vert_pos1, right, vert_pos1)
 
+    # Extract text data
+    start_date = data.get("startDateStr", "")
+    end_date = data.get("endDateStr", "")
+    instrument = data.get("kitsName", "")
+    laboratory = data.get("laboratoryName", "")
+    lab_relation = data.get("laboratoryRelation", "")
+
     # Text within the field
-    textbox1 = {"time_range": f'{data["startDateStr"]} - {data["endDateStr"]}',
-                "instrument/kit": f'{data["kitsName"]}',
-                "laboratory": f'{data["laboratoryName"]} ({data["laboratoryRelation"]})'
+    textbox1 = {"time_range": start_date + " - " + end_date,
+                "instrument/kit": instrument,
+                "laboratory": laboratory + "(" + lab_relation + ")"
                 }
 
     # First row
-    pdf.setFont("SimHei", 12)  # Set for the whole box
+    pdf.setFont("SimHei", 11)  # Set for the whole box
     pdf.drawString(left + 65, vert_pos1 - 23, "时间范围: ")
-    pdf.drawString(left + 125, vert_pos1 - 23, textbox1["time_range"])
+    pdf.drawString(left + 120, vert_pos1 - 23, textbox1["time_range"])
 
     # Check if the laboratory name text overflows
-    threshold = right - middle_vert - 135
+    threshold = right - middle_vert - 127
     text_location = textbox1["laboratory"]
     first_line, overflow, status = _check_text_overflow(pdf, text_location, threshold)
     if status:
         pdf.drawString(middle_vert + 75, vert_pos1 - 23, "实验室: ")
-        pdf.drawString(middle_vert + 125, vert_pos1 - 23, first_line)
-        pdf.drawString(middle_vert + 125, vert_pos1 - 43, overflow)
+        pdf.drawString(middle_vert + 120, vert_pos1 - 23, first_line)
+        pdf.drawString(middle_vert + 120, vert_pos1 - 43, overflow)
 
     else:
         pdf.drawString(middle_vert + 75, vert_pos1 - 23, "实验室: ")
-        pdf.drawString(middle_vert + 125, vert_pos1 - 23, text_location)
+        pdf.drawString(middle_vert + 120, vert_pos1 - 23, text_location)
 
     # Second row
-    pdf.drawString(left + 65, vert_pos1 - 48, "仪器/试剂盒: ")
-    pdf.drawString(left + 143, vert_pos1 - 48, textbox1["instrument/kit"])
+    pdf.drawString(left + 65, vert_pos1 - 48, "仪器: ")
+    pdf.drawString(left + 100, vert_pos1 - 48, textbox1["instrument/kit"])
 
     # Bottom line
     vert_pos2 = vert_pos1 - 48 - 12
@@ -207,9 +215,6 @@ def pdf_gen(json_file, month_or_year):
     fst_run = True
     one_page_format_flag = False
 
-    # Page number
-    page_number = 1
-
     while True:
         if fst_run:
             # Compute the number of lines taking text wrapping into consideration
@@ -263,11 +268,6 @@ def pdf_gen(json_file, month_or_year):
             table.drawOn(pdf, 0, shift_val - 2)
             pdf.restoreState()
 
-            # Print the page number
-            pdf.setFont("Helvetica", 8)  # Set the font and size for the page number
-            pdf.drawString(middle_vert, bottom - 5, f'{page_number}')
-            page_number += 1
-
             # Turn off the first run flag
             fst_run = False
 
@@ -320,11 +320,6 @@ def pdf_gen(json_file, month_or_year):
             table.drawOn(pdf, 0, shift_val)
             pdf.restoreState()
 
-            # Page number
-            pdf.setFont("Helvetica", 8)  # Set the font and size for the page number
-            pdf.drawString(middle_vert, bottom - 5, f'{page_number}')
-            page_number += 1
-
             # Create a new page
             pdf.showPage()
 
@@ -370,11 +365,6 @@ def pdf_gen(json_file, month_or_year):
             pdf.translate(x, y)
             table.drawOn(pdf, 0, shift_val)
             pdf.restoreState()
-
-            # Write the page number
-            pdf.setFont("Helvetica", 8)  # Set the font and size for the page number
-            pdf.drawString(middle_vert, bottom - 5, f'{page_number}')
-            page_number += 1
 
             # Create a new page
             pdf.showPage()
@@ -463,11 +453,6 @@ def pdf_gen(json_file, month_or_year):
 
     # If it doesn't fit, transfer it to the next page
     if fit_height > top - last_height - bottom - 35 + 2:
-        # Write the page number on the current page
-        pdf.setFont("Helvetica", 8)  # Set the font and size for the page number
-        pdf.drawString(middle_vert, bottom - 5, f'{page_number}')
-        page_number += 1
-
         pdf.showPage()
         val = top - 12
         y = val - 11 - 3 * cell_y
@@ -517,19 +502,14 @@ def pdf_gen(json_file, month_or_year):
     pdf.drawString(right - 140, from_bottom, time)
     pdf.line(right - 107, from_bottom, right, from_bottom)
 
-    # Write the page number on the last page. Ignore if the file has only one page as the page number is already drawn.
-    if not one_page_format_flag:
-        pdf.setFont("Helvetica", 8)  # Set the font and size for the page number
-        pdf.drawString(middle_vert, bottom - 5, f'{page_number}')
-
     # Save the file
     pdf.save()
 
     # Upload the pdf, delete it from the local machine and return the path
-    pdf_path = upload_report(pdf_file_name)
-
-    os.remove(pdf_file_name)
-    return pdf_path
+    # pdf_path = upload_report(pdf_file_name)
+    #
+    # os.remove(pdf_file_name)
+    # return pdf_path
 
 
 def _data_counter(data):
@@ -547,7 +527,7 @@ def _data_counter(data):
         for i in range(tests):
             lev = len(test[i]["levelDataList"])
             count = count + lev
-        return count
+    return count
 
 
 def _cv_color_changer(table, table_data):
@@ -570,10 +550,10 @@ def _cv_color_changer(table, table_data):
         if type(current_cv) == float and type(target_cv) == float:
             if current_cv > target_cv:
                 table.setStyle(TableStyle([('TEXTCOLOR', (cv_col, row), (cv_col, row), colors.red)]))
-                table.setStyle(TableStyle([('FONTNAME', (cv_col, row), (cv_col, row), 'SimHei-Bold')]))
+                table.setStyle(TableStyle([('FONTNAME', (cv_col, row), (cv_col, row), 'SimHei-Bold', 9)]))
             else:
                 table.setStyle(TableStyle([('TEXTCOLOR', (cv_col, row), (cv_col, row), colors.black)]))
-                table.setStyle(TableStyle([('FONTNAME', (cv_col, row), (cv_col, row), 'SimHei')]))
+                table.setStyle(TableStyle([('FONTNAME', (cv_col, row), (cv_col, row), 'SimHei', 9)]))
         else:
             continue
 
@@ -591,7 +571,7 @@ def _mean_color_changer(table, table_data):
         try:
             assessment_mean = float(table_data[row][3])
             actual_mean = float(table_data[row][mean_col])
-            actual_sd = float(table_data[row][7])
+            actual_sd = float(table_data[row][4])
         except:
             assessment_mean = ""
             actual_sd = ""
@@ -600,13 +580,13 @@ def _mean_color_changer(table, table_data):
         if type(assessment_mean) == float and type(actual_mean) == float and type(actual_sd) == float:
             if actual_mean < assessment_mean - actual_sd:
                 table.setStyle(TableStyle([('TEXTCOLOR', (mean_col, row), (mean_col, row), colors.blue)]))
-                table.setStyle(TableStyle([('FONTNAME', (mean_col, row), (mean_col, row), 'SimHei-Bold')]))
+                table.setStyle(TableStyle([('FONTNAME', (mean_col, row), (mean_col, row), 'SimHei-Bold', 9)]))
             elif actual_mean > assessment_mean + actual_sd:
                 table.setStyle(TableStyle([('TEXTCOLOR', (mean_col, row), (mean_col, row), colors.red)]))
-                table.setStyle(TableStyle([('FONTNAME', (mean_col, row), (mean_col, row), 'SimHei-Bold')]))
+                table.setStyle(TableStyle([('FONTNAME', (mean_col, row), (mean_col, row), 'SimHei-Bold', 9)]))
             else:
                 table.setStyle(TableStyle([('TEXTCOLOR', (mean_col, row), (mean_col, row), colors.black)]))
-                table.setStyle(TableStyle([('FONTNAME', (mean_col, row), (mean_col, row), 'SimHei')]))
+                table.setStyle(TableStyle([('FONTNAME', (mean_col, row), (mean_col, row), 'SimHei', 9)]))
         else:
             continue
 

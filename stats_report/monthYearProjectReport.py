@@ -1,6 +1,7 @@
 # Standard library imports
 import os
 import uuid
+import copy
 
 # External library imports
 from reportlab.pdfgen import canvas
@@ -14,7 +15,7 @@ from reportlab.platypus import Table, TableStyle, Paragraph
 
 # Local imports
 from json_process_m1 import json_data_extract
-from point_lj_report.pdfCreateTemp import upload_report
+# from point_lj_report.pdfCreateTemp import upload_report
 
 # Default paragraph style
 paragraph_style = ParagraphStyle(name='CustomStyle',
@@ -30,7 +31,7 @@ def pdf_gen(json_data, month_or_year):
     """
     Generates a pdf report for quality control data
     :param json_data: Quality control data
-    :param month_or_year: 1 for month, any other number for year (use 2 for uniformity)
+    :param month_or_year: one for month, any other number for year (use 2 for uniformity)
     :return:
     """
 
@@ -61,6 +62,7 @@ def pdf_gen(json_data, month_or_year):
 
     # Create a new PDF document with a unique name on an A4 paper in landscape orientation
     pdf_file_name = f'./{str(uuid.uuid4())}.pdf'
+    pdf_file_name = 'month1.pdf'
     pdf = canvas.Canvas(pdf_file_name, pagesize=landscape(A4))
 
     # Title (top middle)
@@ -93,38 +95,79 @@ def pdf_gen(json_data, month_or_year):
                 }
 
     # First row
-    pdf.setFont("SimHei", 12)  # Set for the whole box
+    pdf.setFont("SimHei", 11)  # Set for the whole box
     pdf.drawString(left + 65, vert_pos1 - 23, "时间范围: ")
-    pdf.drawString(left + 125, vert_pos1 - 23, textbox1["time_range"])
+    pdf.drawString(left + 120, vert_pos1 - 23, textbox1["time_range"])
 
-    # Check if the laboratory name text overflows
-    threshold = right - middle_vert - 135
+    # Check if the right-hand side text overflows
+    threshold = right - middle_vert - 127
+    threshold2 = right - middle_vert - 145
     text_location = textbox1["laboratory"]
+    text_location2 = textbox1["lot_numb/expiry_date"]
     first_line, overflow, status = _check_text_overflow(pdf, text_location, threshold)
-    if status:
+    first_line2, overflow2, status2 = _check_text_overflow(pdf, text_location2, threshold2)
+
+    # Laboratory name overflows but lot_numb/expiry_date doesn't
+    if status and not status2:
         pdf.drawString(middle_vert + 75, vert_pos1 - 23, "实验室: ")
-        pdf.drawString(middle_vert + 125, vert_pos1 - 23, first_line)
-        pdf.drawString(middle_vert + 125, vert_pos1 - 43, overflow)
+        pdf.drawString(middle_vert + 120, vert_pos1 - 23, first_line)
+        pdf.drawString(middle_vert + 120, vert_pos1 - 40, overflow)
 
         # Second row
-        pdf.drawString(left + 65, vert_pos1 - 68, "仪器/试剂盒: ")
-        pdf.drawString(left + 143, vert_pos1 - 68, textbox1["instrument/kit"])
+        pdf.drawString(left + 65, vert_pos1 - 68, "仪器: ")
+        pdf.drawString(left + 100, vert_pos1 - 68, textbox1["instrument/kit"])
         pdf.drawString(middle_vert + 75, vert_pos1 - 68, "批号/效期: ")
-        pdf.drawString(middle_vert + 143, vert_pos1 - 68, textbox1["lot_numb/expiry_date"])
+        pdf.drawString(middle_vert + 138, vert_pos1 - 68, textbox1["lot_numb/expiry_date"])
 
         # Bottom line
         vert_pos2 = vert_pos1 - 68 - 12
         pdf.line(left, vert_pos2, right, vert_pos2)
 
-    else:
+    # Laboratory name doesn't overflow but lot_numb/expiry_date does
+    elif not status and status2:
         pdf.drawString(middle_vert + 75, vert_pos1 - 23, "实验室: ")
-        pdf.drawString(middle_vert + 125, vert_pos1 - 23, text_location)
+        pdf.drawString(middle_vert + 120, vert_pos1 - 23, text_location)
 
         # Second row
-        pdf.drawString(left + 65, vert_pos1 - 48, "仪器/试剂盒: ")
-        pdf.drawString(left + 143, vert_pos1 - 48, textbox1["instrument/kit"])
+        pdf.drawString(left + 65, vert_pos1 - 48, "仪器: ")
+        pdf.drawString(left + 100, vert_pos1 - 48, textbox1["instrument/kit"])
+
         pdf.drawString(middle_vert + 75, vert_pos1 - 48, "批号/效期: ")
-        pdf.drawString(middle_vert + 143, vert_pos1 - 48, textbox1["lot_numb/expiry_date"])
+        pdf.drawString(middle_vert + 138, vert_pos1 - 48, first_line2)
+        pdf.drawString(middle_vert + 138, vert_pos1 - 65, overflow2)
+
+        # Bottom line
+        vert_pos2 = vert_pos1 - 68 - 12
+        pdf.line(left, vert_pos2, right, vert_pos2)
+
+    # Both Laboratory name and lot_numb/expiry_date overflow
+    elif status and status2:
+        pdf.drawString(middle_vert + 75, vert_pos1 - 20, "实验室: ")
+        pdf.drawString(middle_vert + 120, vert_pos1 - 20, first_line)
+        pdf.drawString(middle_vert + 120, vert_pos1 - 33, overflow)
+
+        # Second line
+        pdf.drawString(left + 65, vert_pos1 - 55, "仪器: ")
+        pdf.drawString(left + 100, vert_pos1 - 55, textbox1["instrument/kit"])
+
+        pdf.drawString(middle_vert + 75, vert_pos1 - 55, "批号/效期: ")
+        pdf.drawString(middle_vert + 138, vert_pos1 - 55, first_line2)
+        pdf.drawString(middle_vert + 138, vert_pos1 - 68, overflow2)
+
+        # Bottom line
+        vert_pos2 = vert_pos1 - 68 - 12
+        pdf.line(left, vert_pos2, right, vert_pos2)
+
+    # Neither Laboratory name nor lot_numb/expiry_date overflow
+    else:
+        pdf.drawString(middle_vert + 75, vert_pos1 - 23, "实验室: ")
+        pdf.drawString(middle_vert + 120, vert_pos1 - 23, text_location)
+
+        # Second row
+        pdf.drawString(left + 65, vert_pos1 - 48, "仪器: ")
+        pdf.drawString(left + 100, vert_pos1 - 48, textbox1["instrument/kit"])
+        pdf.drawString(middle_vert + 75, vert_pos1 - 48, "批号/效期: ")
+        pdf.drawString(middle_vert + 138, vert_pos1 - 48, textbox1["lot_numb/expiry_date"])
 
         # Bottom line
         vert_pos2 = vert_pos1 - 48 - 12
@@ -204,7 +247,7 @@ def pdf_gen(json_data, month_or_year):
     table_style = TableStyle([
         ('LEFTPADDING', (0, 0), (-1, -1), left_pad),
         ('RIGHTPADDING', (0, 0), (-1, -1), left_pad),
-        ('FONTNAME', (0, 0), (1, -1), 'SimHei'),
+        ('FONTNAME', (0, 0), (-1, -1), 'SimHei'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('GRID', (0, 0), (-1, -1), grid_width, grid_color),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
@@ -223,26 +266,25 @@ def pdf_gen(json_data, month_or_year):
     fst_run = True
     one_page_format_flag = False
 
-    # Page number
-    page_number = 1
-
     while True:
         if fst_run:
             # Compute the number of lines taking text wrapping into consideration
             cell_height, numb_line, drawable = process_data(datarow, col_widths[0:2], 20)
-            if status:
+            if status or status2:
                 cell_height, numb_line, drawable = process_data(datarow, col_widths[0:2], 19)
             rows_per_page = drawable
 
             # Accommodate for possible multiline laboratory name
-            if status and numb_line <= 14:
+            if (status or status2) and numb_line <= 14:
                 one_page_format_flag = True
-            elif not status and numb_line <= 15:
+            elif (not status and not status2) and numb_line <= 15:
                 one_page_format_flag = True
 
             # Update the table data for the current page
             table_data = datarow[:rows_per_page]
             datarow = datarow[rows_per_page:]
+
+            table_data_old = copy.deepcopy(table_data)
 
             table_data = _wrappable(table_data, 0)
             table_data = _wrappable(table_data, 1)
@@ -259,6 +301,9 @@ def pdf_gen(json_data, month_or_year):
             _cv_color_changer(table, table_data)
             _mean_color_changer(table, table_data)
 
+            # Handles grouping the batches
+            _handle_groups(table, table_data_old)
+
             # Get the table width and height for the current page
             table_width, table_height = table.wrapOn(pdf, right - left, cell_y)
 
@@ -274,11 +319,6 @@ def pdf_gen(json_data, month_or_year):
             table.drawOn(pdf, 0, shift_val - 2)
             pdf.restoreState()
 
-            # Print the page number
-            pdf.setFont("Helvetica", 8)  # Set the font and size for the page number
-            pdf.drawString(middle_vert, bottom - 5, f'{page_number}')
-            page_number += 1
-
             # Turn off the first run flag
             fst_run = False
 
@@ -288,8 +328,10 @@ def pdf_gen(json_data, month_or_year):
                 pdf.showPage()
 
             if len(datarow):
-            # Update parameters for the leftover data
+                # Update parameters for the leftover data
                 cell_height, numb_line, drawable = process_data(datarow, col_widths[0:2], 30)
+            else:
+                numb_line = 0
 
         if numb_line >= 30:
             # Determine the number of rows that can fit within the page height
@@ -298,6 +340,8 @@ def pdf_gen(json_data, month_or_year):
             # Update the table data for the current page
             table_data = datarow[:rows_per_page]
             datarow = datarow[rows_per_page:]
+
+            table_data_old = copy.deepcopy(table_data)
 
             table_data = _wrappable(table_data, 0)
             table_data = _wrappable(table_data, 1)
@@ -309,6 +353,9 @@ def pdf_gen(json_data, month_or_year):
             # Apply different colors based on rules
             _cv_color_changer(table, table_data)
             _mean_color_changer(table, table_data)
+
+            # Handles grouping the batches
+            _handle_groups(table, table_data_old)
 
             # Get the table width and height for the current page
             table_width, table_height = table.wrapOn(pdf, right - left, top-bottom)
@@ -325,11 +372,6 @@ def pdf_gen(json_data, month_or_year):
             pdf.translate(x, y)
             table.drawOn(pdf, 0, shift_val)
             pdf.restoreState()
-
-            # Page number
-            pdf.setFont("Helvetica", 8)  # Set the font and size for the page number
-            pdf.drawString(middle_vert, bottom - 5, f'{page_number}')
-            page_number += 1
 
             # Create a new page
             pdf.showPage()
@@ -345,6 +387,8 @@ def pdf_gen(json_data, month_or_year):
             table_data = datarow[:rows_per_page]
             datarow = datarow[rows_per_page:]
 
+            table_data_old = copy.deepcopy(table_data)
+
             table_data = _wrappable(table_data, 0)
             table_data = _wrappable(table_data, 1)
 
@@ -355,6 +399,9 @@ def pdf_gen(json_data, month_or_year):
             # Apply different colors based on rules
             _cv_color_changer(table, table_data)
             _mean_color_changer(table, table_data)
+
+            # Handles grouping the batches
+            _handle_groups(table, table_data_old)
 
             # Get the table width and height for the current page
             table_width, table_height = table.wrapOn(pdf, right - left, top-bottom)
@@ -371,11 +418,6 @@ def pdf_gen(json_data, month_or_year):
             pdf.translate(x, y)
             table.drawOn(pdf, 0, shift_val)
             pdf.restoreState()
-
-            # Write the page number
-            pdf.setFont("Helvetica", 8)  # Set the font and size for the page number
-            pdf.drawString(middle_vert, bottom - 5, f'{page_number}')
-            page_number += 1
 
             # Create a new page
             pdf.showPage()
@@ -399,6 +441,8 @@ def pdf_gen(json_data, month_or_year):
     max_page_height = top
     len_data_lastpage = numb_line
 
+    datarow_old = copy.deepcopy(datarow)  # Store the unconverted data
+
     datarow = _wrappable(datarow, 0)
     datarow = _wrappable(datarow, 1)
 
@@ -411,6 +455,9 @@ def pdf_gen(json_data, month_or_year):
         # Apply different colors based on rules
         _cv_color_changer(table, datarow)
         _mean_color_changer(table, datarow)
+
+        # Handles grouping the batches
+        _handle_groups(table, datarow_old)
 
         # Draw the table on the last page
         pdf.saveState()
@@ -458,11 +505,6 @@ def pdf_gen(json_data, month_or_year):
 
     # If it doesn't fit, transfer it to the next page
     if fit_height > top - last_height - bottom - 35 + 2:
-        # Write the page number on the current page
-        pdf.setFont("Helvetica", 8)  # Set the font and size for the page number
-        pdf.drawString(middle_vert, bottom - 5, f'{page_number}')
-        page_number += 1
-
         pdf.showPage()
         val = top - 12
         y = val - 11 - 3 * cell_y
@@ -512,19 +554,14 @@ def pdf_gen(json_data, month_or_year):
     pdf.drawString(right - 140, from_bottom, time)
     pdf.line(right - 107, from_bottom, right, from_bottom)
 
-    # Write the page number on the last page. Ignore if the file has only one page as the page number is already drawn.
-    if not one_page_format_flag:
-        pdf.setFont("Helvetica", 8)  # Set the font and size for the page number
-        pdf.drawString(middle_vert, bottom - 5, f'{page_number}')
-
     pdf.save()
 
-    # Upload the pdf, delete it from the local machine and return the path
-    pdf_path = upload_report(pdf_file_name)
-
-    os.remove(pdf_file_name)
-    return pdf_path
-
+    # # Upload the pdf, delete it from the local machine and return the path
+    # pdf_path = upload_report(pdf_file_name)
+    #
+    # os.remove(pdf_file_name)
+    # return pdf_path
+    #
 
 def _generate_regent_name(string):
     """
@@ -594,7 +631,7 @@ def _mean_color_changer(table, table_data):
         try:
             assessment_mean = float(table_data[row][3])
             actual_mean = float(table_data[row][6])
-            actual_sd = float(table_data[row][7])
+            actual_sd = float(table_data[row][4])
         except:
             assessment_mean = ""
             actual_sd = ""
@@ -635,6 +672,52 @@ def _check_text_overflow(c, text, threshold):
         return text, remaining_text, 1
 
     return text, "", 0
+
+
+def _row_span_calc(table_data):
+    """
+    Computes the spanning range for each batch(group) of data
+    :param table_data: the data used to create the table.
+    :return:
+    """
+    rowspan = []
+    column = []
+    counter = 0
+    for row in table_data:
+        data = row[0]
+        column.append(data)
+    for i in range(len(column)):
+        if column[i]:
+            counter = 1
+        else:
+            counter += 1
+        if (i + 1) == (len(column)):
+            rowspan.append(counter)
+            break
+
+        if column[i + 1]:
+            rowspan.append(counter)
+            counter = 1
+
+    return rowspan
+
+
+def _handle_groups(table, table_data_old):
+    """
+    Handles created groups of rows
+    :param table: a table created on canvas
+    :param table_data_old: the data used to create the table.
+    :return:
+    """
+
+    rowspan = _row_span_calc(table_data_old)
+    current_row = 0
+
+    for group_rowspan in rowspan:
+        table_style = [('SPAN', (0, current_row), (0, current_row + group_rowspan - 1)),
+                       ('GRID', (0, 0), (0, -1), 1, colors.gray)]
+        table.setStyle(TableStyle(table_style))
+        current_row += group_rowspan
 
 
 def _calc_newline_numb(width, text):
@@ -760,6 +843,21 @@ def process_data(datarow, col_widths, n_drawable):
     cell_height0, numb_line0 = _calc_newline_numb(col_widths[0], col_data0)
     cell_height1, numb_line1 = _calc_newline_numb(col_widths[1], col_data1)
 
+    drawable = _data_for_n_rows(n_drawable, col_widths[0], col_widths[1], col_data0, col_data1)
+    group_size = _row_span_calc(datarow[:drawable])
+
+    # This normalizes cell_height0 for the number of rows in a group
+    b_sum = [0]
+    running_sum = 0
+    for numb in group_size:
+        running_sum += numb
+        b_sum.append(running_sum)
+
+    for i in range(len(b_sum) - 1):
+        start = b_sum[i]
+        end = b_sum[i + 1]
+        cell_height0[start:end] = [cell_height0[start] / (end - start)] * (end - start)
+
     cell_height = [max(x, y) for x, y in zip(cell_height0, cell_height1)]
     for i in range(len(numb_line0)):
         if numb_line0[i] > 1:
@@ -768,5 +866,4 @@ def process_data(datarow, col_widths, n_drawable):
             numb_line1[i] *= (12/19)
     numb_line = sum(max(x, y) for x, y in zip(numb_line0, numb_line1))
 
-    drawable = _data_for_n_rows(n_drawable, col_widths[0], col_widths[1], col_data0, col_data1)
     return cell_height, numb_line, drawable
