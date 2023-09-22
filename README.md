@@ -22,6 +22,10 @@ The PDF report generation module provides the following functionality:
 
 - **Yearly CV Quality Control Reports:** These reports specifically focus on Coefficient of Variation (CV) quality control metrics on a yearly basis.
 
+- **Bi-monthly CV Quality Control Reports:** CV quality control violation reports for a two month period.
+
+- **Violation summary report:** A report containing all the violations and the recommended actions
+
 
 ## Output Examples
 
@@ -43,6 +47,14 @@ Here are examples of the generated PDF reports for different report types:
 
 5. Yearly CV Quality Control Report:
    ![Yearly CV QC Report](./output_sample_images/image5.png)
+
+6. Bi-monthly CV Quality Control Report:
+
+   ![Bi-monthly CV Quality Control Reports](./output_sample_images/image6.png)
+
+7. Violation summary report:
+
+   ![Violation summary report:](./output_sample_images/image7.png)
 
 
 Please refer to the codebase for the specific implementation details and how to generate these reports.
